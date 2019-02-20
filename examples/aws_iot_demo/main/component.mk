@@ -6,6 +6,7 @@ ifdef CONFIG_EXAMPLE_EMBEDDED_CERTS
 # Certificate files. certificate.pem.crt & private.pem.key must be downloaded
 # from AWS, see README for details.
 COMPONENT_EMBED_TXTFILES := certs/aws-root-ca.pem certs/certificate.pem.crt certs/private.pem.key
+# COMPONENT_EMBED_TXTFILES := certs/fullchain.pem certs/certificate.pem.crt certs/private.pem.key
 
 ifndef IDF_CI_BUILD
 # Print an error if the certificate/key files are missing

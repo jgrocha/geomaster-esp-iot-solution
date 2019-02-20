@@ -28,11 +28,20 @@
 #include "app_oled.h"
 #include "app_power.h"
 
+#include <locale.h>
+
+#include <dht.h>
+
+static const dht_sensor_type_t sensor_type = DHT_TYPE_DHT11;
+static const gpio_num_t dht_gpio = ((gpio_num_t) 17);
+
+static const char* TAG = "Geomaster";
+
 #define AP_SSID      CONFIG_AP_SSID
 #define AP_PASSWORD  CONFIG_AP_PASSWORD
 
 //Power control
-#define POWER_CNTL_IO              ((gpio_num_t) 19)
+#define POWER_CNTL_IO              ((gpio_num_t) 14)
 CPowerCtrl *periph = NULL;
 
 // Sensor
@@ -232,17 +241,29 @@ static void initialize_sntp(void)
 
 static void obtain_time(void)
 {
+    char strftime_str[64];
+
     initialize_sntp();
     // wait for time to be set
     time_t now = 0;
-    struct tm timeinfo = { 0 };
+    struct tm timeinfo;
+
+    setlocale(LC_TIME, "pt_PT.UTF-8");
+
+    strptime("25 Jul 1969 12:33:45", "%d %b %Y %H:%M:%S", &timeinfo);
+
+    strftime(strftime_str, sizeof(strftime_str), "%c", &timeinfo);
+    ESP_LOGW(TAG, "The current NTP date/time is: %s", strftime_str);
+
     int retry = 0;
     const int retry_count = 10;
-    while(timeinfo.tm_year < (2016 - 1900) && ++retry < retry_count) {
+    while(timeinfo.tm_year < 2000 && ++retry < retry_count) {
         vTaskDelay(2000 / portTICK_PERIOD_MS);
         time(&now);
         localtime_r(&now, &timeinfo);
     }
+    strftime(strftime_str, sizeof(strftime_str), "%c", &timeinfo);
+    ESP_LOGW(TAG, "The updated NTP date/time is: %s", strftime_str);
 }
 
 void sntp_task(void* pvParameter)
@@ -252,12 +273,38 @@ void sntp_task(void* pvParameter)
     obtain_time();
     time_t g_now;
     time(&g_now);
-    setenv("TZ", "GMT-8", 1);
+    // cat /etc/localtime | tail -1
+    setenv("TZ", "WET0WEST,M3.5.0/1,M10.5.0", 1);
     tzset();
     localtime_r(&g_now, &timeinfo);
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    printf("The current date/time in Shanghai is: %s", strftime_buf);
+    printf("The current date/time in Braga is: %s", strftime_buf);
+
+    ESP_LOGW(TAG, "The current date/time is: %s", strftime_buf);
+
     vTaskDelete(NULL);
+}
+
+void dht_test(void *pvParameters)
+{
+    int16_t temperature = 0;
+    int16_t humidity = 0;
+
+    // DHT sensors that come mounted on a PCB generally have
+    // pull-up resistors on the data pin.  It is recommended
+    // to provide an external pull-up resistor otherwise...
+
+    // gpio_set_pull_mode(dht_gpio, GPIO_PULLUP_ONLY);
+
+    while (1)
+    {
+        if (dht_read_data(sensor_type, dht_gpio, &humidity, &temperature) == ESP_OK)
+            printf("Humidity: %d%% Temp: %dC\n", humidity / 10, temperature / 10);
+        else
+            printf("Could not read data from sensor\n");
+
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
 }
 
 static void application_test()
@@ -273,6 +320,9 @@ static void application_test()
     CWiFi *wifi = CWiFi::GetInstance(WIFI_MODE_STA);
     wifi->Connect(AP_SSID, AP_PASSWORD, portMAX_DELAY);
     xTaskCreate(&sntp_task, "sntp_task", 2048*2, NULL, 10, NULL);
+
+    // DHT11
+    xTaskCreate(dht_test, "dht_test", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 }
 
 extern "C" void app_main()

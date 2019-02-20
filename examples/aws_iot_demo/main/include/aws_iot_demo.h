@@ -9,6 +9,12 @@
 #ifndef _IOT_AWS_IOT_TASK_H_
 #define _IOT_AWS_IOT_TASK_H_
 
+struct Node
+{
+    // char mensagem[64];
+    char *mensagem;
+    struct Node *next;
+};
 
 /* The examples use simple WiFi configuration that you can set via
  'make menuconfig'.

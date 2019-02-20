@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <sys/time.h>
+#include <locale.h>
 
 #define OLED_SHOW_LEFT_TOUCH        9
 #define OLED_SHOW_RIGHT_TOUCH       8
@@ -87,9 +88,12 @@ esp_err_t COled::show_time()
     char strftime_buf[64];
     time_t t_now;
     time(&t_now);
-    setenv("TZ", "GMT-8", 1);
+    setenv("TZ", "WET0WEST,M3.5.0/1,M10.5.0", 1);
     tzset();
     localtime_r(&t_now, &timeinfo);
+
+    setlocale(LC_TIME, "pt_PT.UTF-8");
+
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
 
     draw_3216char(0, 16, strftime_buf[11]);
