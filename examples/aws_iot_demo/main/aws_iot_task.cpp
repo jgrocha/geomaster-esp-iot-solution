@@ -83,16 +83,19 @@ void iot_subscribe_callback_handler(AWS_IoT_Client *pClient, char *topicName,
     struct Node *novo = NULL;
 
     ESP_LOGI(AWSIOTTAG, "Subscribe callback");
-    ESP_LOGI(AWSIOTTAG, "%.*s\t%.*s", topicNameLen, topicName,
-             (int)params->payloadLen, (char *)params->payload);
+    ESP_LOGI(AWSIOTTAG, "%.*s\t%.*s", topicNameLen, topicName, (int)params->payloadLen, (char *)params->payload);
 
     /*Copy the new string to pData buffer*/
     strlcpy((char *)pData, (const char *)params->payload,
             (int)params->payloadLen + 1);
 
     novo = (struct Node *)malloc(sizeof(struct Node));
-    novo->mensagem = (char *)malloc((int)params->payloadLen + 1);
-    strlcpy(novo->mensagem, (const char *)params->payload, (int)params->payloadLen + 1);
+    // novo->mensagem = (char *)malloc((int)params->payloadLen + 1);
+    // strlcpy(novo->mensagem, (const char *)params->payload, (int)params->payloadLen + 1);
+
+    novo->mensagem = (char *)malloc(topicNameLen + 1 + (int)params->payloadLen + 1 + 1); // "topic payload\n\0"
+    sprintf(novo->mensagem, "%.*s %.*s\n", topicNameLen, topicName, (int)params->payloadLen, (char *)params->payload);
+
     // (novo->mensagem)[bufferlen] = '\0';
     novo->next = headMessagesFromMosquitto;
     headMessagesFromMosquitto = novo;
@@ -195,6 +198,9 @@ void aws_iot_task(void *param)
     int32_t i = 0;
     IoT_Error_t rc = FAILURE;
     // AWS_IoT_Client client;
+    int h;
+    char publish_topic[200];
+
     IoT_Client_Init_Params mqttInitParams = iotClientInitParamsDefault;
     IoT_Client_Connect_Params connectParams = iotClientConnectParamsDefault;
     IoT_Publish_Message_Params paramsQOS0;
@@ -327,10 +333,19 @@ void aws_iot_task(void *param)
         {
             if (cabeca->next == NULL)
             {
+                // not working! 
                 // sendMessage(cabeca->mensagem, strlen(cabeca->mensagem));
-                sprintf(cPayload, "%s", cabeca->mensagem);
+                for (h=0; (cabeca->mensagem)[h] != ' ' && h < strlen(cabeca->mensagem); h++);
+                if (h < strlen(cabeca->mensagem)) {
+                    strlcpy(publish_topic, cabeca->mensagem, h+1); // +1 room for the NUL
+                    strlcpy(cPayload, &((cabeca->mensagem)[h+1]), strlen(cabeca->mensagem)-h );
+                } else {
+                    // no space: topic without payload
+                    sprintf(publish_topic, "%s", cabeca->mensagem);
+                    sprintf(cPayload, "%s", "");
+                }
                 paramsQOS0.payloadLen = strlen(cPayload);
-                rc = aws_iot_mqtt_publish(&client, PUBLISH_TOPIC, PUB_TOPIC_LEN, &paramsQOS0);
+                rc = aws_iot_mqtt_publish(&client, publish_topic, strlen(publish_topic), &paramsQOS0);
                 app_lcd_aws_pub_cb(cPayload);
                 if (rc == MQTT_REQUEST_TIMEOUT_ERROR)
                 {
@@ -349,10 +364,20 @@ void aws_iot_task(void *param)
                 while (penultimo->next->next != NULL)
                     penultimo = penultimo->next;
 
+                // not working! 
                 // sendMessage(penultimo->next->mensagem, strlen(penultimo->next->mensagem));
-                sprintf(cPayload, "%s", penultimo->next->mensagem);
+                for (h=0; (penultimo->next->mensagem)[h] != ' ' && h < strlen(penultimo->next->mensagem); h++);
+                if (h < strlen(penultimo->next->mensagem)) {
+                    strlcpy(publish_topic, penultimo->next->mensagem, h+1); // +1 room for the NUL
+                    strlcpy(cPayload, &((penultimo->next->mensagem)[h+1]), strlen(penultimo->next->mensagem)-h );
+                } else {
+                    // no space: topic without payload
+                    sprintf(publish_topic, "%s", penultimo->next->mensagem);
+                    sprintf(cPayload, "%s", "");
+                }
+
                 paramsQOS0.payloadLen = strlen(cPayload);
-                rc = aws_iot_mqtt_publish(&client, PUBLISH_TOPIC, PUB_TOPIC_LEN, &paramsQOS0);
+                rc = aws_iot_mqtt_publish(&client, publish_topic, strlen(publish_topic), &paramsQOS0);
                 app_lcd_aws_pub_cb(cPayload);
                 if (rc == MQTT_REQUEST_TIMEOUT_ERROR)
                 {
@@ -383,7 +408,7 @@ void aws_iot_task(void *param)
             }
         } */
 
-        ESP_LOGI(AWSIOTTAG, "-->sleep");
+        // ESP_LOGI(AWSIOTTAG, "-->sleep");
         vTaskDelay(1000 / portTICK_RATE_MS);
     }
 

@@ -327,15 +327,15 @@ void receiveMassgesFromPIC21_task(void *params)
 void imprimeListaMensagens(struct Node *n)
 {
     int k = 0;
-    printf("---8<-------------------------------------------------------\n");
+    // printf("---8<-------------------------------------------------------\n");
     while (n != NULL)
     {
-        printf("Mensagem %d: %s\n", k, n->mensagem);
+        printf("Mensagem na lista ligada %d: %s\n", k, n->mensagem);
         // uart_write_bytes(UART_NUM_2, (const char *)n->mensagem, strlen(n->mensagem));
         n = n->next;
         k++;
     }
-    printf("---8<-------------------------------------------------------\n");
+    // printf("---8<-------------------------------------------------------\n");
 }
 
 struct Node *processaMensagens(struct Node *cabeca)
@@ -380,7 +380,7 @@ void sendMessages2PIC32_task(void *params)
     {
         last_wake_time = xTaskGetTickCount();
         headMessagesFromMosquitto = processaMensagens(headMessagesFromMosquitto);
-        // vTaskDelayUntil(&last_wake_time, 1000 / portTICK_PERIOD_MS);
+        vTaskDelayUntil(&last_wake_time, 100 / portTICK_PERIOD_MS);
     }
 }
 
@@ -390,9 +390,9 @@ void stats_task(void *params)
     TickType_t last_wake_time = xTaskGetTickCount();
     while (1)
     {
-        printf("---8<--fromMosquitto-----------------------------------------------------\n");
+        // printf("---8<--fromMosquitto-----------------------------------------------------\n");
         imprimeListaMensagens(headMessagesFromMosquitto);
-        printf("---8<--fromPIC32    -----------------------------------------------------\n");
+        // printf("---8<--fromPIC32    -----------------------------------------------------\n");
         imprimeListaMensagens(headMessagesFromPIC32);
         vTaskDelayUntil(&last_wake_time, 5000 / portTICK_PERIOD_MS);
     }
