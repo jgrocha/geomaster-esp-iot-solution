@@ -93,8 +93,16 @@ void iot_subscribe_callback_handler(AWS_IoT_Client *pClient, char *topicName,
     // novo->mensagem = (char *)malloc((int)params->payloadLen + 1);
     // strlcpy(novo->mensagem, (const char *)params->payload, (int)params->payloadLen + 1);
 
-    novo->mensagem = (char *)malloc(topicNameLen + 1 + (int)params->payloadLen + 1 + 1); // "topic payload\n\0"
-    sprintf(novo->mensagem, "%.*s %.*s\n", topicNameLen, topicName, (int)params->payloadLen, (char *)params->payload);
+    if (params->payloadLen > 0)
+    {
+        novo->mensagem = (char *)malloc(topicNameLen + 1 + (int)params->payloadLen + 1 + 1); // "topic payload\n\0"
+        sprintf(novo->mensagem, "%.*s %.*s\n", topicNameLen, topicName, (int)params->payloadLen, (char *)params->payload);
+    }
+    else
+    {
+        novo->mensagem = (char *)malloc(topicNameLen + 1 + 1); // "topic\n\0"
+        sprintf(novo->mensagem, "%.*s\n", topicNameLen, topicName);
+    }
 
     // (novo->mensagem)[bufferlen] = '\0';
     novo->next = headMessagesFromMosquitto;
@@ -333,13 +341,17 @@ void aws_iot_task(void *param)
         {
             if (cabeca->next == NULL)
             {
-                // not working! 
+                // not working!
                 // sendMessage(cabeca->mensagem, strlen(cabeca->mensagem));
-                for (h=0; (cabeca->mensagem)[h] != ' ' && h < strlen(cabeca->mensagem); h++);
-                if (h < strlen(cabeca->mensagem)) {
-                    strlcpy(publish_topic, cabeca->mensagem, h+1); // +1 room for the NUL
-                    strlcpy(cPayload, &((cabeca->mensagem)[h+1]), strlen(cabeca->mensagem)-h );
-                } else {
+                for (h = 0; (cabeca->mensagem)[h] != ' ' && h < strlen(cabeca->mensagem); h++)
+                    ;
+                if (h < strlen(cabeca->mensagem))
+                {
+                    strlcpy(publish_topic, cabeca->mensagem, h + 1); // +1 room for the NUL
+                    strlcpy(cPayload, &((cabeca->mensagem)[h + 1]), strlen(cabeca->mensagem) - h);
+                }
+                else
+                {
                     // no space: topic without payload
                     sprintf(publish_topic, "%s", cabeca->mensagem);
                     sprintf(cPayload, "%s", "");
@@ -364,13 +376,17 @@ void aws_iot_task(void *param)
                 while (penultimo->next->next != NULL)
                     penultimo = penultimo->next;
 
-                // not working! 
+                // not working!
                 // sendMessage(penultimo->next->mensagem, strlen(penultimo->next->mensagem));
-                for (h=0; (penultimo->next->mensagem)[h] != ' ' && h < strlen(penultimo->next->mensagem); h++);
-                if (h < strlen(penultimo->next->mensagem)) {
-                    strlcpy(publish_topic, penultimo->next->mensagem, h+1); // +1 room for the NUL
-                    strlcpy(cPayload, &((penultimo->next->mensagem)[h+1]), strlen(penultimo->next->mensagem)-h );
-                } else {
+                for (h = 0; (penultimo->next->mensagem)[h] != ' ' && h < strlen(penultimo->next->mensagem); h++)
+                    ;
+                if (h < strlen(penultimo->next->mensagem))
+                {
+                    strlcpy(publish_topic, penultimo->next->mensagem, h + 1); // +1 room for the NUL
+                    strlcpy(cPayload, &((penultimo->next->mensagem)[h + 1]), strlen(penultimo->next->mensagem) - h);
+                }
+                else
+                {
                     // no space: topic without payload
                     sprintf(publish_topic, "%s", penultimo->next->mensagem);
                     sprintf(cPayload, "%s", "");
