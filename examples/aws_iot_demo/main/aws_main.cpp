@@ -13,6 +13,7 @@
 #include "iot_wifi_conn.h"
 #include "aws_iot_demo.h"
 #include "image.h"
+#include <locale.h>
 
 const char *AWSIOTTAG = "aws_iot";
 
@@ -240,10 +241,19 @@ static void app_sntp_init()
     struct tm timeinfo = {0};
     int retry = 0;
     char strftime_buf[64];
+    char strftime_str[64];
+
     ESP_LOGI("Time", "Initializing SNTP\n");
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, (char *)"pool.ntp.org");
+    // sntp_setservername(0, (char *)"pool.ntp.org");
+    sntp_setservername(0, (char *)"ntp02.oal.ul.pt");
     sntp_init();
+
+    setlocale(LC_TIME, "pt_PT.UTF-8");
+    strptime("25 Jul 1969 12:33:45", "%d %b %Y %H:%M:%S", &timeinfo);
+    strftime(strftime_str, sizeof(strftime_str), "%c", &timeinfo);
+    ESP_LOGW("Time", "The current NTP date/time is: %s", strftime_str);
+    ESP_LOGW("Time", "The current year is: %d", timeinfo.tm_year);
 
     while (timeinfo.tm_year < (2016 - 1900) && ++retry < 10)
     {
@@ -254,7 +264,8 @@ static void app_sntp_init()
         localtime_r(&now, &timeinfo);
     }
     /*Acquire new time*/
-    setenv("TZ", "GMT-8", 1); // Set timezone to Shanghai time
+    // setenv("TZ", "GMT-8", 1); // Set timezone to Shanghai time
+    setenv("TZ", "WET0WEST,M3.5.0/1,M10.5.0", 1); // Set timezone to Costa Nova time
     tzset();
     localtime_r(&now, &timeinfo);
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
