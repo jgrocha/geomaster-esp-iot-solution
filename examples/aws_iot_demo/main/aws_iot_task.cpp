@@ -82,8 +82,8 @@ void iot_subscribe_callback_handler(AWS_IoT_Client *pClient, char *topicName,
 {
     struct Node *novo = NULL;
 
-    ESP_LOGI(AWSIOTTAG, "Subscribe callback");
-    ESP_LOGI(AWSIOTTAG, "%.*s\t%.*s", topicNameLen, topicName, (int)params->payloadLen, (char *)params->payload);
+    // ESP_LOGI(AWSIOTTAG, "Subscribe callback");
+    ESP_LOGI(AWSIOTTAG, "%.*s %.*s", topicNameLen, topicName, (int)params->payloadLen, (char *)params->payload);
 
     /*Copy the new string to pData buffer*/
     strlcpy((char *)pData, (const char *)params->payload,
@@ -108,8 +108,8 @@ void iot_subscribe_callback_handler(AWS_IoT_Client *pClient, char *topicName,
     novo->next = headMessagesFromMosquitto;
     headMessagesFromMosquitto = novo;
 
-    ESP_LOGI(AWSIOTTAG, "Message received: %s \n", (char *)pData);
-    app_lcd_aws_sub_cb(pData);
+    //  ESP_LOGI(AWSIOTTAG, "Message received: %s \n", (char *)pData);
+    // app_lcd_aws_sub_cb(pData);
 }
 
 void disconnectCallbackHandler(AWS_IoT_Client *pClient, void *data)
@@ -142,63 +142,6 @@ void disconnectCallbackHandler(AWS_IoT_Client *pClient, void *data)
 }
 
 static AWS_IoT_Client client;
-
-void sendMessage(char *mensagem, int len)
-{
-    char cPayload[100];
-    int32_t i = 0;
-    IoT_Error_t rc = FAILURE;
-    IoT_Client_Init_Params mqttInitParams = iotClientInitParamsDefault;
-    IoT_Client_Connect_Params connectParams = iotClientConnectParamsDefault;
-    IoT_Publish_Message_Params paramsQOS0;
-
-    sprintf(cPayload, "%s", mensagem);
-    paramsQOS0.payloadLen = strlen(cPayload);
-    rc = aws_iot_mqtt_publish(&client, PUBLISH_TOPIC, PUB_TOPIC_LEN,
-                              &paramsQOS0);
-
-    app_lcd_aws_pub_cb(cPayload);
-    if (rc == MQTT_REQUEST_TIMEOUT_ERROR)
-    {
-        ESP_LOGW(AWSIOTTAG, "QOS1 publish ack not received.");
-        rc = SUCCESS;
-    }
-}
-
-struct Node *sendMessagestoMosquitto(struct Node *cabeca)
-{
-    int res = 0;
-    struct Node *penultimo;
-    if (cabeca == NULL)
-    {
-        return NULL;
-    }
-    else
-    {
-        if (cabeca->next == NULL)
-        {
-            sendMessage(cabeca->mensagem, strlen(cabeca->mensagem));
-            // res = uart_write_bytes(UART_NUM_2, (const char *)cabeca->mensagem, strlen(cabeca->mensagem));
-            printf("%s %d enviada - res: %d\n", cabeca->mensagem, strlen(cabeca->mensagem), res);
-            free(cabeca->mensagem);
-            free(cabeca);
-            return NULL;
-        }
-        else
-        {
-            penultimo = cabeca;
-            while (penultimo->next->next != NULL)
-                penultimo = penultimo->next;
-            sendMessage(penultimo->next->mensagem, strlen(penultimo->next->mensagem));
-            // res = uart_write_bytes(UART_NUM_2, (const char *)penultimo->next->mensagem, strlen(penultimo->next->mensagem));
-            printf("%s %d enviada - res: %d\n", penultimo->next->mensagem, strlen(penultimo->next->mensagem), res);
-            free(penultimo->next->mensagem);
-            free(penultimo->next);
-            penultimo->next = NULL;
-            return cabeca;
-        }
-    }
-}
 
 void aws_iot_task(void *param)
 {
@@ -401,31 +344,17 @@ void aws_iot_task(void *param)
                     rc = SUCCESS;
                 }
 
-                // res = uart_write_bytes(UART_NUM_2, (const char *)penultimo->next->mensagem, strlen(penultimo->next->mensagem));
-                printf("%s %d enviada\n", penultimo->next->mensagem, strlen(penultimo->next->mensagem));
+                printf("%s %d enviada para o mosquitto\n", penultimo->next->mensagem, strlen(penultimo->next->mensagem));
                 free(penultimo->next->mensagem);
                 free(penultimo->next);
                 penultimo->next = NULL;
                 headMessagesFromPIC32 = cabeca;
             }
         }
-        /* else
-        {
-            sprintf(cPayload, "%s : %d ", "hello from ESP32 (QOS0)", i++);
-            paramsQOS0.payloadLen = strlen(cPayload);
-            rc = aws_iot_mqtt_publish(&client, PUBLISH_TOPIC, PUB_TOPIC_LEN,
-                                      &paramsQOS0);
-
-            app_lcd_aws_pub_cb(cPayload);
-            if (rc == MQTT_REQUEST_TIMEOUT_ERROR)
-            {
-                ESP_LOGW(AWSIOTTAG, "QOS1 publish ack not received.");
-                rc = SUCCESS;
-            }
-        } */
-
-        // ESP_LOGI(AWSIOTTAG, "-->sleep");
-        vTaskDelay(1000 / portTICK_RATE_MS);
+        // Estavam a ficar acumuladas...
+        // vTaskDelay(1000 / portTICK_RATE_MS);
+        // vTaskDelay(200 / portTICK_RATE_MS);
+        vTaskDelay(100 / portTICK_RATE_MS);
     }
 
     ESP_LOGE(AWSIOTTAG, "An error occurred in the main loop.");

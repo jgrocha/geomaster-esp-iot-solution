@@ -278,14 +278,13 @@ void receiveMassgesFromPIC21_task(void *params)
     char mensagem[240];
     printf("receiveMassgesFromPIC21_task\nstarting...\n");
 
-    int inicio = 0, indice = 0, parte = 0;
     struct Node *novo = NULL;
 
     int k, len;
     /* Configure parameters of an UART driver,
      * communication pins and install the driver */
     uart_config_t uart_config = {
-        .baud_rate = 230400,
+        .baud_rate = 230400, // 57600, // 115200, // 230400
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
@@ -349,6 +348,34 @@ void imprimeListaMensagens(struct Node *n)
     // printf("---8<-------------------------------------------------------\n");
 }
 
+#define CHUNKSIZE 8
+
+// as mensagens vêm com o '\n' incluido e é também enviado
+int enviaMensagem2PIC32(const char *mensagem, size_t tamanho)
+{
+    int k = 0, j = 0;
+    int res = 0;
+    char buffer[CHUNKSIZE + 1];
+    while (k < tamanho)
+    {
+        buffer[j++] = mensagem[k++];
+        if (j == CHUNKSIZE)
+        {
+            buffer[j] = '\0';
+            res += uart_write_bytes(UART_NUM_2, buffer, CHUNKSIZE);
+            // printf("%s %d enviada - res: %d\n", buffer, CHUNKSIZE, res);
+            j = 0;
+        }
+    }
+    if (j > 0)
+    {
+        buffer[j] = '\0';
+        res += uart_write_bytes(UART_NUM_2, buffer, j);
+        // printf("%s %d enviada - res: %d\n", buffer, j, res);
+    }
+    return res;
+}
+
 struct Node *processaMensagens(struct Node *cabeca)
 {
     int res = 0;
@@ -361,8 +388,9 @@ struct Node *processaMensagens(struct Node *cabeca)
     {
         if (cabeca->next == NULL)
         {
-            res = uart_write_bytes(UART_NUM_2, (const char *)cabeca->mensagem, strlen(cabeca->mensagem));
-            printf("%s %d enviada - res: %d\n", cabeca->mensagem, strlen(cabeca->mensagem), res);
+            // res = uart_write_bytes(UART_NUM_2, (const char *)cabeca->mensagem, strlen(cabeca->mensagem));
+            res = enviaMensagem2PIC32((const char *)cabeca->mensagem, strlen(cabeca->mensagem));
+            printf("Mensagem enviada %d de %d: %s", res, strlen(cabeca->mensagem), cabeca->mensagem);
             free(cabeca->mensagem);
             free(cabeca);
             return NULL;
@@ -372,8 +400,9 @@ struct Node *processaMensagens(struct Node *cabeca)
             penultimo = cabeca;
             while (penultimo->next->next != NULL)
                 penultimo = penultimo->next;
-            res = uart_write_bytes(UART_NUM_2, (const char *)penultimo->next->mensagem, strlen(penultimo->next->mensagem));
-            printf("%s %d enviada - res: %d\n", penultimo->next->mensagem, strlen(penultimo->next->mensagem), res);
+            // res = uart_write_bytes(UART_NUM_2, (const char *)penultimo->next->mensagem, strlen(penultimo->next->mensagem));
+            res = enviaMensagem2PIC32((const char *)penultimo->next->mensagem, strlen(penultimo->next->mensagem));
+            printf("Mensagem enviada %d de %d: %s", res, strlen(cabeca->mensagem), cabeca->mensagem);
             free(penultimo->next->mensagem);
             free(penultimo->next);
             penultimo->next = NULL;
@@ -384,7 +413,6 @@ struct Node *processaMensagens(struct Node *cabeca)
 
 void sendMessages2PIC32_task(void *params)
 {
-    int t;
     printf("print_task\nstarting...\n");
     TickType_t last_wake_time = xTaskGetTickCount();
     while (1)
@@ -424,9 +452,9 @@ extern "C" void app_main()
     const size_t stack_size = 36 * 1024;
 #endif
 
-    ds18b20_startup();
+    // ds18b20_startup();
 
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
+    // vTaskDelay(5000 / portTICK_PERIOD_MS);
     // xTaskCreate(&ds18b20_task, "ds18b20", 1024 * 8, NULL, 12, NULL);
 
     // xTaskCreate(echo_task, "uart_echo_task", 4096, NULL, 10, NULL);
@@ -438,7 +466,7 @@ extern "C" void app_main()
 
     xTaskCreate(receiveMassgesFromPIC21_task, "receiveMassgesFromPIC21_task", stack_size, NULL, 7, NULL);
     xTaskCreate(sendMessages2PIC32_task, "sendMessages2PIC32_task", stack_size, NULL, 5, NULL);
-    xTaskCreate(stats_task, "stats_task", stack_size, NULL, 8, NULL);
+    // xTaskCreate(stats_task, "stats_task", stack_size, NULL, 8, NULL);
 
     /*Start AWS task*/
     // ok
