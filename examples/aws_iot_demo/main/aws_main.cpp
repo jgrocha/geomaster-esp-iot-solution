@@ -15,7 +15,7 @@
 #include "image.h"
 #include <locale.h>
 
-const char *AWSIOTTAG = "aws_iot";
+const char *AWSIOTTAG = "Geomaster";
 
 /* sonda temperatura ds18b20 */
 
@@ -53,6 +53,8 @@ const char *AWSIOTTAG = "aws_iot";
 
 struct Node *headMessagesFromPIC32 = NULL;
 struct Node *headMessagesFromMosquitto = NULL;
+int countout2pic32 = 0;
+int countinfrompic32 = 0;
 
 // #define GPIO_DS18B20_0       (CONFIG_ONE_WIRE_GPIO)
 #define GPIO_DS18B20_0 27
@@ -373,6 +375,7 @@ int enviaMensagem2PIC32(const char *mensagem, size_t tamanho)
         res += uart_write_bytes(UART_NUM_2, buffer, j);
         // printf("%s %d enviada - res: %d\n", buffer, j, res);
     }
+    countout2pic32++;
     return res;
 }
 
@@ -390,7 +393,7 @@ struct Node *processaMensagens(struct Node *cabeca)
         {
             // res = uart_write_bytes(UART_NUM_2, (const char *)cabeca->mensagem, strlen(cabeca->mensagem));
             res = enviaMensagem2PIC32((const char *)cabeca->mensagem, strlen(cabeca->mensagem));
-            printf("Mensagem enviada %d de %d: %s", res, strlen(cabeca->mensagem), cabeca->mensagem);
+            printf("%d mensagem enviada (%d bytes de %d): %s", countout2pic32, res, strlen(cabeca->mensagem), cabeca->mensagem);
             free(cabeca->mensagem);
             free(cabeca);
             return NULL;
@@ -402,7 +405,7 @@ struct Node *processaMensagens(struct Node *cabeca)
                 penultimo = penultimo->next;
             // res = uart_write_bytes(UART_NUM_2, (const char *)penultimo->next->mensagem, strlen(penultimo->next->mensagem));
             res = enviaMensagem2PIC32((const char *)penultimo->next->mensagem, strlen(penultimo->next->mensagem));
-            printf("Mensagem enviada %d de %d: %s", res, strlen(cabeca->mensagem), cabeca->mensagem);
+            printf("%d mensagem enviada (%d bytes de %d): %s", countout2pic32, res, strlen(cabeca->mensagem), cabeca->mensagem);
             free(penultimo->next->mensagem);
             free(penultimo->next);
             penultimo->next = NULL;
